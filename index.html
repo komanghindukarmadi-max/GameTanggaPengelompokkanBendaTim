@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Edukasi: Benda Cerdas vs Benda Tak Cerdas (Dua Pemain)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: radial-gradient(circle at 50% 10%, #0f172a 0%, #020617 50%, #000000 100%);
+            color: #f8fafc;
+            user-select: none;
+            overflow-x: hidden;
+        }
+
+        /* Floating Tech Particles Effect */
+        .tech-particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+        .particle {
+            position: absolute;
+            background: rgba(56, 189, 248, 0.15);
+            border-radius: 50%;
+            animation: floatUp 12s infinite linear;
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(105vh) scale(0.5); opacity: 0; }
+            50% { opacity: 0.8; }
+            100% { transform: translateY(-10vh) scale(1.4); opacity: 0; }
+        }
+
+        /* Custom scrollbar for edit modal */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b; 
+        }
+
+        /* Player Character */
+        .player-character {
+            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: absolute;
+            bottom: 0;
+            width: 50px;
+            height: 60px;
+            z-index: 10;
+        }
+        
+        .stair-container {
+            position: relative;
+            height: 250px;
+            width: 100%;
+            display: flex;
+            align-items: flex-end;
+        }
+        
+        .stair {
+            background: linear-gradient(to bottom, #0284c7, #0369a1);
+            border: 1px solid #38bdf8;
+            border-bottom: none;
+            box-shadow: 0 -4px 15px rgba(56, 189, 248, 0.3);
+            position: absolute;
+            bottom: 0;
+            border-radius: 6px 6px 0 0;
+        }
+        
+        .pop-anim {
+            animation: pop 0.3s ease-out;
+        }
+        
+        @keyframes pop {
+            0% { transform: scale(0.8); }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(1); }
+        }
+
+        .answer-btn {
+            transition: all 0.2s ease;
+        }
+        .answer-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px -1px rgba(56, 189, 248, 0.25);
+        }
+        .answer-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Cover Background Animation Elements */
+        @keyframes floatSlow {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(2deg); }
+        }
+        .floating-badge {
+            animation: floatSlow 3s ease-in-out infinite;
+        }
+
+        @keyframes pulseTech {
+            0%, 100% { transform: scale(1); filter: drop-shadow(0 0 20px rgba(56, 189, 248, 0.7)); }
+            50% { transform: scale(1.06); filter: drop-shadow(0 0 35px rgba(56, 189, 248, 0.9)); }
+        }
+        .tech-illu {
+            animation: pulseTech 1.5s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center py-4 relative">
+
+    <!-- Ambient Animated Background Particles -->
+    <div class="tech-particles" id="techParticles">
+        <div class="particle" style="width: 18px; height: 18px; left: 10%; animation-duration: 10s; animation-delay: 0s;"></div>
+        <div class="particle" style="width: 25px; height: 25px; left: 25%; animation-duration: 14s; animation-delay: 2s;"></div>
+        <div class="particle" style="width: 12px; height: 12px; left: 40%; animation-duration: 8s; animation-delay: 1s;"></div>
+        <div class="particle" style="width: 30px; height: 30px; left: 60%; animation-duration: 16s; animation-delay: 4s;"></div>
+        <div class="particle" style="width: 20px; height: 20px; left: 75%; animation-duration: 11s; animation-delay: 3s;"></div>
+        <div class="particle" style="width: 15px; height: 15px; left: 90%; animation-duration: 13s; animation-delay: 5s;"></div>
+    </div>
+
+    <!-- Audio Elements -->
+    <audio id="bgMusic" loop preload="auto">
+        <source src="https://labs.phaser.io/assets/audio/oedipus_wizball_highscore.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="correctSound" preload="auto">
+        <source src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" type="audio/ogg">
+    </audio>
+    <audio id="wrongSound" preload="auto">
+        <source src="https://actions.google.com/sounds/v1/cartoon/slide_whistle.ogg" type="audio/ogg">
+    </audio>
+
+    <!-- COVER SCREEN (WELCOME) -->
+    <div id="coverScreen" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950 bg-opacity-95 p-4 backdrop-blur-md">
+        <div class="bg-gradient-to-b from-slate-900 via-slate-900 to-sky-950 rounded-3xl shadow-2xl max-w-3xl w-full p-6 md:p-10 text-center border-4 border-sky-500 relative overflow-hidden text-white">
+            <!-- Decorative Header Banner Illustration Background Blobs -->
+            <div class="absolute -top-16 -right-16 w-56 h-56 bg-sky-500 rounded-full opacity-20 pointer-events-none blur-3xl"></div>
+            <div class="absolute -bottom-16 -left-16 w-56 h-56 bg-cyan-600 rounded-full opacity-20 pointer-events-none blur-3xl"></div>
+
+            <div class="mb-3 inline-block bg-sky-500/20 text-sky-300 border border-sky-400/30 font-extrabold px-5 py-2 rounded-full text-xs md:text-sm tracking-wide shadow-sm floating-badge">
+                🤖 Game Edukasi • Benda Cerdas & Tak Cerdas
+            </div>
+
+            <h1 class="text-3xl md:text-5xl font-extrabold text-white mb-2 leading-tight drop-shadow-md">
+                Petualangan Benda Cerdas vs Tak Cerdas
+            </h1>
+            <p class="text-slate-300 mb-6 text-sm md:text-base max-w-xl mx-auto">
+                Uji pengetahuanmu tentang perbedaan benda cerdas (memiliki sensor, mikrokontroler, otomatisasi) dan benda tak cerdas. Jawab soal, panjat 10 anak tangga, dan kibarkan bendera kemenangan!
+            </p>
+
+            <!-- Visual Cover Graphic: Interactive Tech SVG illustration & Dual Player Avatars -->
+            <div class="bg-gradient-to-r from-sky-950 via-slate-900 to-cyan-950 text-white rounded-3xl p-6 mb-8 border border-sky-500/30 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+                <div class="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(56,189,248,0.2),transparent_60%)]"></div>
+                
+                <!-- Left Tech Graphics / Model -->
+                <div class="flex items-center space-x-4 z-10 text-left">
+                    <div class="w-20 h-20 bg-gradient-to-br from-sky-500 to-cyan-700 rounded-2xl flex items-center justify-center text-white shadow-xl tech-illu p-2 border border-sky-300/40">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-12 h-12 text-white">
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                            <line x1="8" y1="21" x2="16" y2="21"></line>
+                            <line x1="12" y1="17" x2="12" y2="21"></line>
+                            <circle cx="12" cy="10" r="2"></circle>
+                        </svg>
+                    </div>
+                    <div>
+                        <span class="text-sky-400 font-bold text-xs uppercase tracking-wider">Materi Utama</span>
+                        <h3 class="font-extrabold text-white text-base md:text-lg">Sensor & Otomatisasi</h3>
+                        <p class="text-xs text-slate-300">20 Soal Pilihan Bergizi Edukasi</p>
+                    </div>
+                </div>
+
+                <!-- VS Badge Divider -->
+                <div class="bg-gradient-to-r from-amber-500 to-orange-600 text-white font-extrabold px-4 py-2 rounded-2xl shadow-lg border-2 border-amber-300 transform rotate-3 z-10 text-sm">
+                    ⚡ 1 ON 1 DUEL
+                </div>
+
+                <!-- Right Player Mode Graphics -->
+                <div class="flex items-center space-x-4 z-10 text-right md:text-left">
+                    <div class="order-2 md:order-1 text-right">
+                        <span class="text-amber-400 font-bold text-xs uppercase tracking-wider">Mode Kompetisi</span>
+                        <h3 class="font-extrabold text-white text-base md:text-lg">Pemain 1 vs Pemain 2</h3>
+                        <p class="text-xs text-slate-300">Layar Split Interaktif</p>
+                    </div>
+                    <div class="order-1 md:order-2 w-20 h-20 bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl flex items-center justify-center text-white shadow-xl p-2 transform rotate-6 border border-amber-300/40">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-12 h-12 text-white">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Start Game Button -->
+            <button onclick="launchGame()" class="w-full bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white font-extrabold py-4 px-8 rounded-2xl shadow-2xl transform transition hover:-translate-y-1 active:translate-y-0 text-lg md:text-xl flex items-center justify-center space-x-3 border-2 border-emerald-300">
+                <svg class="w-7 h-7 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span>MULAI PERMAINAN SEKARANG</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Header -->
+    <header class="text-center mb-6 w-full max-w-6xl px-4 z-10">
+        <div class="flex flex-col md:flex-row justify-between items-center bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl shadow-xl border border-slate-700 text-white">
+            <div>
+                <h1 class="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-cyan-300">Mengenal Benda Cerdas & Tak Cerdas</h1>
+                <p class="text-xs text-slate-400">Lomba Cepat Tepat Menuju Puncak Tangga Kemenangan!</p>
+            </div>
+            <div class="mt-3 md:mt-0 flex items-center gap-4">
+                <div class="bg-sky-950/80 px-4 py-2 rounded-xl border border-sky-700/50 text-sky-300 font-bold flex items-center gap-2 shadow-inner">
+                    <svg class="w-5 h-5 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Sisa Waktu: <span id="timerDisplay" class="text-sky-400 text-lg font-extrabold">10:00</span>
+                </div>
+                <button onclick="resetGameSession()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-xl text-sm font-semibold transition border border-slate-600">
+                    Ulangi Game
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Dual Game Arena -->
+    <main class="w-full max-w-6xl px-4 grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 z-10">
+        
+        <!-- PLAYER 1 ARENA -->
+        <div class="bg-slate-900/90 backdrop-blur-md rounded-3xl shadow-2xl overflow-hidden border-2 border-sky-500/40 flex flex-col justify-between relative text-white">
+            <!-- Overlay before game start -->
+            <div id="overlay1" class="absolute inset-0 bg-slate-950 bg-opacity-80 z-20 flex flex-col items-center justify-center text-white p-6 text-center backdrop-blur-sm">
+                <div class="w-14 h-14 bg-sky-500 rounded-full flex items-center justify-center font-bold text-2xl mb-3 shadow-lg border border-sky-300">P1</div>
+                <h3 class="text-xl font-bold mb-1">Pemain 1 (Biru)</h3>
+                <p class="text-xs text-slate-300">Tekan tombol mulai di atas untuk memulai permainan bersama!</p>
+            </div>
+
+            <!-- Player 1 Header Card -->
+            <div class="bg-gradient-to-r from-sky-600 to-blue-700 text-white p-4 flex justify-between items-center shadow-md border-b border-sky-400/20">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-white text-sky-700 rounded-full flex items-center justify-center font-black shadow-md">P1</div>
+                    <div>
+                        <h2 class="font-extrabold text-lg">Pemain 1</h2>
+                        <p class="text-xs text-sky-100">Anak Tangga: <span id="step1Display">0</span> / 10</p>
+                    </div>
+                </div>
+                <div class="bg-black/30 backdrop-blur-sm px-4 py-1.5 rounded-xl font-extrabold text-xl border border-white/10 text-sky-300">
+                    Skor: <span id="score1">0</span>
+                </div>
+            </div>
+
+            <!-- Player 1 Visuals (Stairs) -->
+            <div class="p-4 bg-slate-950/60 border-b border-slate-800 relative">
+                <div id="stairContainer1" class="stair-container">
+                    <div id="character1" class="player-character" style="left: 0; bottom: 0;">
+                        <svg viewBox="0 -35 80 105" width="100%" height="100%" style="overflow:visible;">
+                            <!-- Head -->
+                            <circle cx="30" cy="15" r="10" fill="#38BDF8" />
+                            <!-- Body -->
+                            <rect x="24" y="25" width="12" height="25" fill="#38BDF8" rx="4" />
+                            <!-- Left Arm -->
+                            <line x1="24" y1="30" x2="12" y2="45" stroke="#38BDF8" stroke-width="6" stroke-linecap="round" />
+                            <!-- Right Arm NORMAL -->
+                            <g id="p1-arm-normal">
+                                <line x1="36" y1="30" x2="48" y2="45" stroke="#38BDF8" stroke-width="6" stroke-linecap="round" />
+                            </g>
+                            <!-- Right Arm WIN -->
+                            <g id="p1-arm-win" style="display:none;">
+                                <line x1="36" y1="30" x2="45" y2="5" stroke="#38BDF8" stroke-width="6" stroke-linecap="round" />
+                                <rect x="44" y="-30" width="3" height="40" fill="#94a3b8" />
+                                <rect x="47" y="-30" width="24" height="10" fill="red" />
+                                <rect x="47" y="-20" width="24" height="10" fill="white" stroke="#ccc" stroke-width="0.5" />
+                                <animateTransform attributeName="transform" type="rotate" values="-15 36 30; 15 36 30; -15 36 30" dur="0.8s" repeatCount="indefinite" />
+                            </g>
+                            <!-- Legs -->
+                            <line x1="27" y1="50" x2="20" y2="68" stroke="#38BDF8" stroke-width="6" stroke-linecap="round" />
+                            <line x1="33" y1="50" x2="40" y2="68" stroke="#38BDF8" stroke-width="6" stroke-linecap="round" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Player 1 Questions -->
+            <div class="p-6 flex-1 flex flex-col justify-between bg-slate-900">
+                <div>
+                    <div class="flex justify-between items-center text-xs font-semibold text-slate-400 mb-2">
+                        <span>SOAL NO. <span id="qNum1">1</span></span>
+                        <span id="qProgress1">1 dari 20</span>
+                    </div>
+                    <h3 id="questionText1" class="text-slate-100 font-bold text-base min-h-[4rem] mb-4">
+                        Memuat pertanyaan...
+                    </h3>
+                </div>
+
+                <div id="optionsContainer1" class="space-y-2.5"></div>
+            </div>
+        </div>
+
+        <!-- PLAYER 2 ARENA -->
+        <div class="bg-slate-900/90 backdrop-blur-md rounded-3xl shadow-2xl overflow-hidden border-2 border-amber-500/40 flex flex-col justify-between relative text-white">
+            <!-- Overlay before game start -->
+            <div id="overlay2" class="absolute inset-0 bg-slate-950 bg-opacity-80 z-20 flex flex-col items-center justify-center text-white p-6 text-center backdrop-blur-sm">
+                <div class="w-14 h-14 bg-amber-500 rounded-full flex items-center justify-center font-bold text-2xl mb-3 shadow-lg border border-amber-300">P2</div>
+                <h3 class="text-xl font-bold mb-1">Pemain 2 (Kuning)</h3>
+                <p class="text-xs text-slate-300">Siap untuk beradu cepat menjawab dan mencapai puncak?</p>
+            </div>
+
+            <!-- Player 2 Header Card -->
+            <div class="bg-gradient-to-r from-amber-600 to-orange-700 text-white p-4 flex justify-between items-center shadow-md border-b border-amber-400/20">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-white text-amber-700 rounded-full flex items-center justify-center font-black shadow-md">P2</div>
+                    <div>
+                        <h2 class="font-extrabold text-lg">Pemain 2</h2>
+                        <p class="text-xs text-amber-100">Anak Tangga: <span id="step2Display">0</span> / 10</p>
+                    </div>
+                </div>
+                <div class="bg-black/30 backdrop-blur-sm px-4 py-1.5 rounded-xl font-extrabold text-xl border border-white/10 text-amber-300">
+                    Skor: <span id="score2">0</span>
+                </div>
+            </div>
+
+            <!-- Player 2 Visuals (Stairs) -->
+            <div class="p-4 bg-slate-950/60 border-b border-slate-800 relative">
+                <div id="stairContainer2" class="stair-container">
+                    <div id="character2" class="player-character" style="left: 0; bottom: 0;">
+                         <svg viewBox="0 -35 80 105" width="100%" height="100%" style="overflow:visible;">
+                            <!-- Head -->
+                            <circle cx="30" cy="15" r="10" fill="#FBBF24" />
+                            <!-- Body -->
+                            <rect x="24" y="25" width="12" height="25" fill="#FBBF24" rx="4" />
+                            <!-- Left Arm -->
+                            <line x1="24" y1="30" x2="12" y2="45" stroke="#FBBF24" stroke-width="6" stroke-linecap="round" />
+                            <!-- Right Arm NORMAL -->
+                            <g id="p2-arm-normal">
+                                <line x1="36" y1="30" x2="48" y2="45" stroke="#FBBF24" stroke-width="6" stroke-linecap="round" />
+                            </g>
+                            <!-- Right Arm WIN -->
+                            <g id="p2-arm-win" style="display:none;">
+                                <line x1="36" y1="30" x2="45" y2="5" stroke="#FBBF24" stroke-width="6" stroke-linecap="round" />
+                                <rect x="44" y="-30" width="3" height="40" fill="#94a3b8" />
+                                <rect x="47" y="-30" width="24" height="10" fill="red" />
+                                <rect x="47" y="-20" width="24" height="10" fill="white" stroke="#ccc" stroke-width="0.5" />
+                                <animateTransform attributeName="transform" type="rotate" values="-15 36 30; 15 36 30; -15 36 30" dur="0.8s" repeatCount="indefinite" />
+                            </g>
+                            <!-- Legs -->
+                            <line x1="27" y1="50" x2="20" y2="68" stroke="#FBBF24" stroke-width="6" stroke-linecap="round" />
+                            <line x1="33" y1="50" x2="40" y2="68" stroke="#FBBF24" stroke-width="6" stroke-linecap="round" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Player 2 Questions -->
+            <div class="p-6 flex-1 flex flex-col justify-between bg-slate-900">
+                <div>
+                    <div class="flex justify-between items-center text-xs font-semibold text-slate-400 mb-2">
+                        <span>SOAL NO. <span id="qNum2">1</span></span>
+                        <span id="qProgress2">1 dari 20</span>
+                    </div>
+                    <h3 id="questionText2" class="text-slate-100 font-bold text-base min-h-[4rem] mb-4">
+                        Memuat pertanyaan...
+                    </h3>
+                </div>
+
+                <div id="optionsContainer2" class="space-y-2.5"></div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer Edit Trigger Section -->
+    <footer class="w-full max-w-6xl px-4 pb-8 text-center z-10">
+        <div class="bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl shadow-xl border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-white">
+            <span class="text-xs text-slate-400 font-medium">Panel khusus guru / pembuat game untuk mengelola daftar pertanyaan.</span>
+            <button onclick="openEditModal()" class="bg-sky-600 hover:bg-sky-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow transition flex items-center space-x-2 border border-sky-400/30">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                <span>Edit Soal & Jawaban</span>
+            </button>
+        </div>
+    </footer>
+
+    <!-- PASSWORD MODAL -->
+    <div id="passwordModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-950 bg-opacity-80 p-4 backdrop-blur-md">
+        <div class="bg-slate-900 border border-slate-700 text-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+            <h3 class="text-lg font-bold text-white mb-2">Masukkan Password Akses</h3>
+            <p class="text-xs text-slate-400 mb-4">Fitur edit soal ini dilindungi sandi khusus agar aman dari akses siswa.</p>
+            <input type="password" id="passwordInput" placeholder="••••••••" class="w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-950 text-white focus:outline-none focus:border-sky-500 text-center font-bold tracking-widest text-lg mb-4">
+            <div class="flex justify-end space-x-3">
+                <button onclick="closePasswordModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl font-semibold text-sm text-slate-300">Batal</button>
+                <button onclick="verifyPassword()" class="px-5 py-2 bg-sky-600 hover:bg-sky-700 rounded-xl font-bold text-sm text-white shadow">Masuk</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- EDIT QUESTIONS MODAL -->
+    <div id="editModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-950 bg-opacity-80 p-4 backdrop-blur-md">
+        <div class="bg-slate-900 border border-slate-700 text-white rounded-3xl p-6 max-w-3xl w-full max-h-[85vh] shadow-2xl flex flex-col">
+            <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
+                <h3 class="text-xl font-extrabold text-white">Kelola Pertanyaan Benda Cerdas & Tak Cerdas</h3>
+                <button onclick="closeEditModal()" class="text-slate-400 hover:text-white font-bold text-xl px-2">&times;</button>
+            </div>
+            
+            <div id="questionsEditorList" class="flex-1 overflow-y-auto space-y-4 pr-2"></div>
+
+            <div class="mt-4 pt-3 border-t border-slate-800 flex justify-end gap-3">
+                <button onclick="closeEditModal()" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl font-semibold text-slate-300 text-sm">Tutup</button>
+                <button onclick="saveQuestions()" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 rounded-xl font-bold text-white text-sm shadow">Simpan Perubahan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MESSAGE BOX MODAL -->
+    <div id="messageBox" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-950 bg-opacity-80 p-4 backdrop-blur-md">
+        <div class="bg-slate-900 border border-slate-700 text-white rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl">
+            <h3 id="msgTitle" class="text-lg font-bold text-white mb-2">Informasi</h3>
+            <p id="msgBody" class="text-slate-300 text-sm mb-6">Pesan...</p>
+            <button onclick="closeMessageBox()" class="w-full py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl shadow">OK</button>
+        </div>
+    </div>
+
+    <!-- GAME JAVASCRIPT LOGIC -->
+    <script>
+        // 20 Soal Pilihan Ganda Mengenai Benda Cerdas & Benda Tak Cerdas
+        let defaultQuestions = [
+            {
+                q: "Apa definisi dari benda cerdas (smart thing)?",
+                options: [
+                    "Benda yang terbuat dari bahan mahal dan berkilau",
+                    "Benda elektronik/mekanis yang dilengkapi sensor dan sistem komputer untuk bekerja secara otomatis",
+                    "Benda buatan tangan manusia tanpa aliran listrik"
+                ],
+                correct: 1
+            },
+            {
+                q: "Apa definisi utama dari benda tak cerdas?",
+                options: [
+                    "Benda yang tidak memiliki sensor, komputasi, dan hanya bekerja jika digerakkan manusia secara manual",
+                    "Benda yang berukuran sangat kecil dan mudah rusak",
+                    "Benda elektronik yang membutuhkan kabel sangat panjang"
+                ],
+                correct: 0
+            },
+            {
+                q: "Komponen dasar pada benda cerdas yang berfungsi untuk mendeteksi perubahan lingkungan sekitar adalah...",
+                options: ["Sakelar manual", "Sensor", "Kaca pembesar"],
+                correct: 1
+            },
+            {
+                q: "Manakah di bawah ini yang merupakan contoh benda tak cerdas?",
+                options: ["Lampu jalan otomatis", "Pintu otomatis dengan sensor gerak", "Pintu kayu biasa"],
+                correct: 2
+            },
+            {
+                q: "Sebuah lampu dapat menyala sendiri saat ruangan terasa gelap karena dilengkapi sensor cahaya. Lampu ini termasuk...",
+                options: ["Benda tak cerdas", "Benda cerdas (Smart Light)", "Benda mati alami"],
+                correct: 1
+            },
+            {
+                q: "Manakah yang merupakan contoh benda cerdas di dalam rumah tangga?",
+                options: ["Sapu ijuk manual", "Robot penyedot debu (Robot Vacuum)", "Ember plastik"],
+                correct: 1
+            },
+            {
+                q: "Mengapa jam tangan pintar (smartwatch) dikategorikan sebagai benda cerdas?",
+                options: [
+                    "Karena memiliki jarum jam mekanis berbahan emas",
+                    "Karena dapat mengukur denyut jantung, memproses data, dan terhubung ke internet",
+                    "Karena memiliki warna tali yang beragam"
+                ],
+                correct: 1
+            },
+            {
+                q: "Sebuah papan tulis kayu biasa yang ditulis menggunakan kapur tergolong ke dalam...",
+                options: ["Benda cerdas", "Benda tak cerdas", "Benda otomatis"],
+                correct: 1
+            },
+            {
+                q: "Fitur utama yang membedakan Smart TV (TV Cerdas) dengan TV konvensional zaman dulu adalah...",
+                options: [
+                    "Smart TV bisa terhubung ke internet dan menjalankan aplikasi canggih",
+                    "Smart TV membutuhkan antena fisik luar yang sangat tinggi",
+                    "Smart TV hanya bisa menampilkan 2 saluran televisi saja"
+                ],
+                correct: 0
+            },
+            {
+                q: "Kipas angin gantung tradisional yang harus ditarik talinya untuk menyala tergolong...",
+                options: ["Benda cerdas", "Benda tak cerdas", "Robotik canggih"],
+                correct: 1
+            },
+            {
+                q: "Bagian pada benda cerdas yang bertindak sebagai 'otak' untuk mengolah data sensor disebut...",
+                options: ["Roda pemutar", "Mikrokontroler / Prosesor", "Cermin cembung"],
+                correct: 1
+            },
+            {
+                q: "Mengapa pensil kayu biasa tergolong sebagai benda tak cerdas?",
+                options: [
+                    "Karena pensil tidak memiliki sensor, aliran listrik, maupun kemampuan merespons lingkungan",
+                    "Karena pensil bisa patah jika dipress",
+                    "Karena pensil tidak berwarna terang"
+                ],
+                correct: 0
+            },
+            {
+                q: "Tempat sampah yang membuka tutupnya sendiri saat tangan manusia mendekat merupakan...",
+                options: ["Benda cerdas (Smart Trash Can)", "Benda tak cerdas", "Benda magis"],
+                correct: 0
+            },
+            {
+                q: "Apa keuntungan utama memanfaatkan benda cerdas dalam kehidupan sehari-hari?",
+                options: [
+                    "Menghabiskan daya listrik tanpa manfaat",
+                    "Membantu mempermudah pekerjaan manusia dan meningkatkan efisiensi",
+                    "Membuat semua benda menjadi lebih berat"
+                ],
+                correct: 1
+            },
+            {
+                q: "Termometer digital cerdas yang bisa mengirim laporan suhu tubuh ke smartphone tergolong sebagai...",
+                options: ["Benda tak cerdas", "Benda cerdas", "Benda kuno"],
+                correct: 1
+            },
+            {
+                q: "Manakah pasangan benda cerdas dan benda tak cerdas yang tepat?",
+                options: [
+                    "Mobil otonom (tanpa sopir) [Cerdas] dan Sepeda kayuh biasa [Tak Cerdas]",
+                    "Buku tulis [Cerdas] dan Smartphone [Tak Cerdas]",
+                    "Kacamata biasa [Cerdas] dan Robot pengantar [Tak Cerdas]"
+                ],
+                correct: 0
+            },
+            {
+                q: "Gembok pintu yang hanya bisa dibuka menggunakan sidik jari atau aplikasi smartphone adalah...",
+                options: ["Gembok tak cerdas", "Gembok cerdas (Smart Lock)", "Gembok manual"],
+                correct: 1
+            },
+            {
+                q: "Manakah yang BUKAN merupakan ciri-ciri dari benda cerdas?",
+                options: [
+                    "Memiliki sensor untuk mengamati kondisi sekitarnya",
+                    "Dapat mengambil keputusan atau aksi otomatis berdasar data",
+                    "Hanya bekerja jika didorong penuh secara mekanis oleh manusia"
+                ],
+                correct: 2
+            },
+            {
+                q: "AC (Pendingin ruangan) yang bisa menyesuaikan suhu ruangan secara otomatis saat mendeteksi orang di dalam kamar adalah...",
+                options: ["Benda cerdas", "Benda tak cerdas", "Benda non-elektronik"],
+                correct: 0
+            },
+            {
+                q: "Sapu lidi dan pengki yang digunakan untuk membersihkan halaman rumah tergolong ke dalam...",
+                options: ["Benda cerdas", "Benda tak cerdas", "Sistem IoT"],
+                correct: 1
+            }
+        ];
+
+        let questions = JSON.parse(localStorage.getItem('smart_things_questions')) || defaultQuestions;
+        
+        const TOTAL_STEPS = 10;
+        const GAME_DURATION = 600; // 10 minutes in seconds
+
+        let gameState = {
+            p1: { score: 0, step: 0, qIndex: 0, pool: [], finished: false },
+            p2: { score: 0, step: 0, qIndex: 0, pool: [], finished: false },
+            timeLeft: GAME_DURATION,
+            timerInterval: null,
+            isRunning: false
+        };
+
+        const audioBg = document.getElementById('bgMusic');
+        const audioCorrect = document.getElementById('correctSound');
+        const audioWrong = document.getElementById('wrongSound');
+
+        function showMessage(title, text) {
+            document.getElementById('msgTitle').innerText = title;
+            document.getElementById('msgBody').innerText = text;
+            document.getElementById('messageBox').classList.remove('hidden');
+        }
+
+        function closeMessageBox() {
+            document.getElementById('messageBox').classList.add('hidden');
+        }
+
+        function shuffleArray(array) {
+            let currentIndex = array.length, randomIndex;
+            while (currentIndex !== 0) {
+                randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex--;
+                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+            }
+            return array;
+        }
+
+        function buildStairs(containerId) {
+            const container = document.getElementById(containerId);
+            const children = Array.from(container.children);
+            children.forEach(child => {
+                if(!child.classList.contains('player-character')) {
+                    container.removeChild(child);
+                }
+            });
+
+            const stairWidth = 100 / TOTAL_STEPS;
+            const stairHeight = 250 / TOTAL_STEPS;
+
+            for (let i = 0; i < TOTAL_STEPS; i++) {
+                const stair = document.createElement('div');
+                stair.className = "stair";
+                stair.style.width = `${stairWidth}%`;
+                stair.style.height = `${(i + 1) * stairHeight}px`;
+                stair.style.left = `${i * stairWidth}%`;
+                stair.style.zIndex = i;
+
+                const num = document.createElement('span');
+                num.innerText = i + 1;
+                num.className = "absolute bottom-1 right-2 text-white opacity-40 font-bold text-xs";
+                stair.appendChild(num);
+
+                container.appendChild(stair);
+            }
+        }
+
+        function updateCharacterPosition(playerNum, step) {
+            const char = document.getElementById(`character${playerNum}`);
+            const stairWidth = 100 / TOTAL_STEPS;
+            const stairHeight = 250 / TOTAL_STEPS;
+            
+            const safeStep = Math.min(step, TOTAL_STEPS);
+            
+            if (safeStep === 0) {
+                char.style.left = '10px';
+                char.style.bottom = '0px';
+            } else {
+                const targetIndex = safeStep - 1;
+                char.style.left = `calc(${targetIndex * stairWidth + (stairWidth/2)}% - 25px)`; 
+                char.style.bottom = `${safeStep * stairHeight}px`;
+            }
+        }
+        
+        function launchGame() {
+            document.getElementById('coverScreen').classList.add('hidden');
+            resetGameSession();
+        }
+
+        function resetGameSession() {
+            clearInterval(gameState.timerInterval);
+            
+            gameState.timeLeft = GAME_DURATION;
+            gameState.isRunning = true;
+
+            const indices1 = shuffleArray([...Array(questions.length).keys()]);
+            const indices2 = shuffleArray([...Array(questions.length).keys()]);
+
+            gameState.p1 = { score: 0, step: 0, qIndex: 0, pool: indices1, finished: false };
+            gameState.p2 = { score: 0, step: 0, qIndex: 0, pool: indices2, finished: false };
+
+            document.getElementById('overlay1').classList.add('hidden');
+            document.getElementById('overlay2').classList.add('hidden');
+            
+            document.getElementById('p1-arm-normal').style.display = 'block';
+            document.getElementById('p1-arm-win').style.display = 'none';
+            document.getElementById('p2-arm-normal').style.display = 'block';
+            document.getElementById('p2-arm-win').style.display = 'none';
+            
+            buildStairs('stairContainer1');
+            buildStairs('stairContainer2');
+            
+            updateCharacterPosition(1, 0);
+            updateCharacterPosition(2, 0);
+
+            document.getElementById('score1').innerText = '0';
+            document.getElementById('score2').innerText = '0';
+            document.getElementById('step1Display').innerText = '0';
+            document.getElementById('step2Display').innerText = '0';
+
+            loadQuestion(1);
+            loadQuestion(2);
+
+            try {
+                audioBg.volume = 0.5;
+                audioBg.currentTime = 0;
+                audioBg.play().catch(e => console.log("Audio play blocked"));
+            } catch(e){}
+
+            gameState.timerInterval = setInterval(() => {
+                if(gameState.timeLeft > 0) {
+                    gameState.timeLeft--;
+                    updateTimerDisplay();
+                } else {
+                    clearInterval(gameState.timerInterval);
+                    gameState.isRunning = false;
+                    handleTimeOut();
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(gameState.timeLeft / 60);
+            const seconds = gameState.timeLeft % 60;
+            document.getElementById('timerDisplay').innerText = 
+                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function loadQuestion(playerNum) {
+            const playerState = gameState[`p${playerNum}`];
+            if (playerState.finished || !gameState.isRunning) return;
+
+            if (playerState.qIndex >= playerState.pool.length) {
+                playerState.pool = shuffleArray([...Array(questions.length).keys()]);
+                playerState.qIndex = 0;
+            }
+
+            const qOriginalIdx = playerState.pool[playerState.qIndex];
+            const qData = questions[qOriginalIdx];
+
+            document.getElementById(`qNum${playerNum}`).innerText = playerState.qIndex + 1;
+            document.getElementById(`qProgress2`).innerText = `${playerState.qIndex + 1} dari ${questions.length}`;
+            document.getElementById(`qProgress1`).innerText = `${playerState.qIndex + 1} dari ${questions.length}`;
+            document.getElementById(`questionText${playerNum}`).innerText = qData.q;
+
+            let optIndices = [0, 1, 2];
+            shuffleArray(optIndices);
+
+            const container = document.getElementById(`optionsContainer${playerNum}`);
+            container.innerHTML = '';
+
+            const labelMap = ['A', 'B', 'C'];
+            optIndices.forEach((originalOptIdx, displayPos) => {
+                const btn = document.createElement('button');
+                btn.className = "answer-btn w-full text-left p-3 rounded-xl border border-slate-700 hover:border-sky-400 bg-slate-950 hover:bg-slate-800 text-slate-200 font-semibold text-sm transition flex items-center justify-between";
+                
+                const prefixLabel = labelMap[displayPos];
+                btn.innerHTML = `<span><strong class="mr-2 text-sky-400">${prefixLabel}.</strong> ${qData.options[originalOptIdx]}</span>`;
+                
+                const isCorrect = (originalOptIdx === qData.correct);
+                btn.onclick = () => handleAnswer(playerNum, isCorrect, btn, container);
+                
+                container.appendChild(btn);
+            });
+        }
+
+        function handleAnswer(playerNum, isCorrect, clickedBtn, container) {
+            if (!gameState.isRunning) return;
+
+            const buttons = container.querySelectorAll('button');
+            buttons.forEach(b => b.disabled = true);
+
+            const playerState = gameState[`p${playerNum}`];
+
+            if (isCorrect) {
+                clickedBtn.classList.replace('border-slate-700', 'border-green-500');
+                clickedBtn.classList.replace('bg-slate-950', 'bg-green-950');
+                
+                playerState.score += 10;
+                playerState.step += 1;
+
+                document.getElementById(`score${playerNum}`).innerText = playerState.score;
+                document.getElementById(`step${playerNum}Display`).innerText = playerState.step;
+                
+                updateCharacterPosition(playerNum, playerState.step);
+                playSound(audioCorrect);
+                playCorrectFeedbackVoice();
+
+                if (playerState.step >= TOTAL_STEPS) {
+                    playerWins(playerNum);
+                    return;
+                }
+            } else {
+                clickedBtn.classList.replace('border-slate-700', 'border-red-500');
+                clickedBtn.classList.replace('bg-slate-950', 'bg-red-950');
+                
+                playWrongFeedback();
+            }
+
+            playerState.qIndex++;
+
+            setTimeout(() => {
+                if (gameState.isRunning && !playerState.finished) {
+                    loadQuestion(playerNum);
+                }
+            }, 1200);
+        }
+
+        function playSound(audioEl) {
+            try {
+                audioEl.currentTime = 0;
+                audioEl.play().catch(e => {});
+            } catch(e){}
+        }
+
+        function playCorrectFeedbackVoice() {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const msg = new SpeechSynthesisUtterance("Hebat, jawaban benar!");
+                msg.lang = 'id-ID';
+                msg.rate = 1.1; 
+                window.speechSynthesis.speak(msg);
+            }
+        }
+
+        function playWrongFeedback() {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const msg = new SpeechSynthesisUtterance("Ayo, coba lagi!");
+                msg.lang = 'id-ID';
+                msg.rate = 1.1; 
+                window.speechSynthesis.speak(msg);
+            } else {
+                playSound(audioWrong);
+            }
+        }
+
+        function playerWins(playerNum) {
+            const playerState = gameState[`p${playerNum}`];
+            playerState.finished = true;
+            gameState.isRunning = false;
+            clearInterval(gameState.timerInterval);
+
+            document.getElementById(`p${playerNum}-arm-normal`).style.display = 'none';
+            document.getElementById(`p${playerNum}-arm-win`).style.display = 'block';
+
+            const char = document.getElementById(`character${playerNum}`);
+            char.classList.add('pop-anim');
+
+            playSound(audioCorrect);
+            setTimeout(() => {
+                playSound(audioCorrect);
+            }, 500);
+
+            const winnerName = playerNum === 1 ? "Pemain 1 (Biru)" : "Pemain 2 (Kuning)";
+            showMessage("Hore! Pemenang Ditemukan!", `Selamat kepada ${winnerName} berhasil mencapai puncak tangga pertama kali dan mengibarkan bendera kemenangan! 🎉`);
+        }
+
+        function handleTimeOut() {
+            audioBg.pause();
+            showMessage("Waktu Habis!", "Waktu permainan 10 menit telah selesai. Bagus sekali atas usaha kalian berdua!");
+        }
+
+        /* Edit Password & Modal System */
+        function openEditModal() {
+            document.getElementById('passwordModal').classList.remove('hidden');
+            document.getElementById('passwordInput').value = '';
+        }
+
+        function closePasswordModal() {
+            document.getElementById('passwordModal').classList.add('hidden');
+        }
+
+        function verifyPassword() {
+            const pass = document.getElementById('passwordInput').value;
+            if (pass === '007') {
+                closePasswordModal();
+                populateEditorList();
+                document.getElementById('editModal').classList.remove('hidden');
+            } else {
+                showMessage("Akses Ditolak", "Password salah! Pastikan memasukkan sandi yang benar.");
+            }
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').classList.add('hidden');
+        }
+
+        function populateEditorList() {
+            const listContainer = document.getElementById('questionsEditorList');
+            listContainer.innerHTML = '';
+
+            questions.forEach((q, idx) => {
+                const item = document.createElement('div');
+                item.className = "bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2";
+                item.innerHTML = `
+                    <div class="flex justify-between items-center font-bold text-xs text-slate-400">
+                        <span>Soal #${idx + 1}</span>
+                    </div>
+                    <textarea class="w-full p-2 text-xs rounded-xl border border-slate-700 bg-slate-900 text-white" rows="2" id="edit_q_${idx}">${q.q}</textarea>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <input type="text" class="p-2 text-xs rounded-xl border border-slate-700 bg-slate-900 text-white" value="${q.options[0]}" id="edit_opt_${idx}_0" placeholder="Pilihan A">
+                        <input type="text" class="p-2 text-xs rounded-xl border border-slate-700 bg-slate-900 text-white" value="${q.options[1]}" id="edit_opt_${idx}_1" placeholder="Pilihan B">
+                        <input type="text" class="p-2 text-xs rounded-xl border border-slate-700 bg-slate-900 text-white" value="${q.options[2]}" id="edit_opt_${idx}_2" placeholder="Pilihan C">
+                    </div>
+                    <div class="flex items-center space-x-2 text-xs pt-1">
+                        <span class="font-semibold text-slate-300">Jawaban Benar:</span>
+                        <select id="edit_correct_${idx}" class="p-1 rounded-lg border border-slate-700 bg-slate-900 text-sky-400 font-bold">
+                            <option value="0" ${q.correct === 0 ? 'selected' : ''}>Pilihan A</option>
+                            <option value="1" ${q.correct === 1 ? 'selected' : ''}>Pilihan B</option>
+                            <option value="2" ${q.correct === 2 ? 'selected' : ''}>Pilihan C</option>
+                        </select>
+                    </div>
+                `;
+                listContainer.appendChild(item);
+            });
+        }
+
+        function saveQuestions() {
+            let updated = [];
+            for (let i = 0; i < questions.length; i++) {
+                const qText = document.getElementById(`edit_q_${i}`).value;
+                const opt0 = document.getElementById(`edit_opt_${i}_0`).value;
+                const opt1 = document.getElementById(`edit_opt_${i}_1`).value;
+                const opt2 = document.getElementById(`edit_opt_${i}_2`).value;
+                const correct = parseInt(document.getElementById(`edit_correct_${i}`).value);
+
+                if (!qText.trim() || !opt0.trim() || !opt1.trim() || !opt2.trim()) {
+                    showMessage("Kesalahan", `Soal nomor ${i + 1} tidak boleh ada yang kosong!`);
+                    return;
+                }
+
+                updated.push({
+                    q: qText,
+                    options: [opt0, opt1, opt2],
+                    correct: correct
+                });
+            }
+
+            questions = updated;
+            localStorage.setItem('smart_things_questions', JSON.stringify(questions));
+            closeEditModal();
+            showMessage("Berhasil", "Daftar pertanyaan berhasil diperbarui!");
+            resetGameSession();
+        }
+    </script>
+</body>
+</html>
